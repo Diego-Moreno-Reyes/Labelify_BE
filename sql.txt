@@ -1,0 +1,112 @@
+CREATE TABLE roles (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(50) NOT NULL UNIQUE,
+    status BOOLEAN DEFAULT TRUE
+);
+
+INSERT INTO roles (name)
+VALUES 
+('User'),
+('Admin'),
+('SuperAdmin');
+
+
+CREATE TABLE users (
+    id SERIAL PRIMARY KEY,
+    username VARCHAR(100) NOT NULL,
+    password_hash TEXT NOT NULL,
+    role_id INT NOT NULL,
+    status BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT fk_users_roles
+        FOREIGN KEY (role_id)
+        REFERENCES roles(id)
+        ON DELETE RESTRICT
+);
+
+
+
+CREATE TABLE printers (
+    id SERIAL PRIMARY KEY,
+    ip_address INET NOT NULL,
+    port INT NOT NULL,
+    status BOOLEAN NOT NULL
+);
+
+INSERT INTO printers (ip_address, port, status)
+VALUES ('192.168.1.100', 9100, true);
+
+drop table labels;
+drop table print_logs;
+
+
+CREATE TABLE labels (
+    id SERIAL PRIMARY KEY,
+    
+    part_number_dpo VARCHAR(50),
+    part_number VARCHAR(50),
+
+    vpps VARCHAR(50) NOT NULL,
+    location_code VARCHAR(10) NOT NULL, 
+    duns VARCHAR(50) NOT NULL,
+    
+    printing_limit INT NOT NULL, 
+    printer_id INT NOT NULL, 
+
+    CONSTRAINT fk_labels_printer
+        FOREIGN KEY (printer_id) REFERENCES printers(id)
+);
+
+
+INSERT INTO labels (
+    printer_id,
+    part_number_dpo,
+    part_number,
+    vpps,
+    location_code,
+    duns,
+    printing_limit
+)
+VALUES
+-- Primera etiqueta
+(
+    1,
+    'W14458103H',
+    '86315039',
+    '4124318',
+    'R',
+    '951597128',
+    999999
+),
+
+-- Segunda etiqueta
+(
+    1,
+    'W14459103H',
+    '86370925',
+    '4124318',
+    'L',
+    '951597128',
+    999999
+);
+
+CREATE TABLE print_logs (
+    id SERIAL PRIMARY KEY,
+
+    label_id INT NOT NULL,
+
+    serial_number VARCHAR(100) NOT NULL, 
+
+    printed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    printed_by VARCHAR(100),
+    
+    reprint BOOLEAN NOT NULL, 
+
+    CONSTRAINT fk_print_label
+        FOREIGN KEY (label_id) REFERENCES labels(id)
+);
+
+
+
+delete from print_logs
