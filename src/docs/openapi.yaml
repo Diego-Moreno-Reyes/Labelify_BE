@@ -1,0 +1,408 @@
+openapi: 3.0.0
+info:
+  title: API de Impresión Zebra
+  version: 1.0.0
+  description: Documentación de la API para gestión de usuarios e impresión de etiquetas Zebra (ZPL).
+
+servers:
+  - url: http://localhost:3000
+    description: Servidor Local
+
+tags:
+  - name: Autenticación
+    description: Gestión de sesiones de usuario
+  - name: Usuarios
+    description: Gestión de usuarios del sistema
+  - name: Etiquetas
+    description: Operaciones de impresión y previsualización de etiquetas
+  - name: Configuración
+    description: Obtener información técnica de las etiquetas
+
+paths:
+  /api/login:
+    post:
+      tags:
+        - Autenticación
+      summary: Iniciar sesión
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                username:
+                  type: string
+                  example: admin
+                password:
+                  type: string
+                  example: 123
+      responses:
+        "200":
+          description: Login exitoso
+        "401":
+          description: Credenciales inválidas
+        "403":
+          description: Usuario desactivado
+
+
+  /api/me:
+    get:
+      tags:
+        - Autenticación
+      summary: Obtener información del usuario actual
+      description: Recupera los datos del usuario autenticado a través de las cookies de sesión.
+      responses:
+        "200":
+          description: Datos del usuario recuperados
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  user:
+                    type: object
+                    properties:
+                      id:
+                        type: integer
+                      username:
+                        type: string
+                      role_id:
+                        type: integer
+                      status:
+                        type: boolean
+                      created_at:
+                        type: string
+                        format: date-time
+                      role_name:
+                        type: string
+                  authenticated:
+                    type: boolean
+
+        "401":
+          description: No autenticado
+
+
+  /api/logout:
+
+    post:
+      tags:
+        - Autenticación
+      summary: Cerrar sesión
+      responses:
+        "200":
+          description: Sesión cerrada correctamente
+
+
+  /api/users:
+    get:
+      tags:
+        - Usuarios
+      summary: Listar todos los usuarios
+      responses:
+        "200":
+          description: Lista de usuarios
+    post:
+      tags:
+        - Usuarios
+      summary: Crear un nuevo usuario
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                username:
+                  type: string
+                password_hash:
+                  type: string
+                  description: Contraseña en texto plano (será hasheada)
+                role_id:
+                  type: integer
+      responses:
+        "201":
+          description: Usuario creado
+
+  /api/users/{id}:
+    patch:
+      tags:
+        - Usuarios
+      summary: Actualizar usuario (General)
+      description: Permite actualizar el nombre de usuario, rol, contraseña o estado. Todos los campos son opcionales.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                username:
+                  type: string
+                  example: "diego.modificado"
+                password:
+                  type: string
+                  example: "nueva_clave_segura"
+                role_id:
+                  type: integer
+                  example: 2
+                status:
+                  type: boolean
+                  example: true
+      responses:
+        "200":
+          description: Usuario actualizado correctamente
+        "404":
+          description: Usuario no encontrado
+        "500":
+          description: Error de servidor
+
+    delete:
+      tags:
+        - Usuarios
+      summary: Eliminar un usuario
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Usuario eliminado correctamente
+        "404":
+          description: Usuario no encontrado
+
+
+
+
+  /api/label/print:
+    post:
+      tags:
+        - Etiquetas
+      summary: Imprimir una etiqueta desde la base de datos (Sujeto a límite diario)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                labelId:
+                  type: integer
+                  example: 1
+                quantity:
+                  type: integer
+                  description: Cantidad de etiquetas a imprimir. Sujeto al limite configurado en la tabla 'labels'.
+                  default: 1
+                  example: 5
+      responses:
+        "200":
+          description: Impresión enviada correctamente. Devuelve la lista de seriados generados.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  serials:
+                    type: array
+                    items: 
+                      type: string
+        "403":
+          description: Límite de impresión diario excedido
+        "404":
+          description: Etiqueta o impresora no encontrada
+
+  /api/label/preview:
+    post:
+      tags:
+        - Etiquetas
+      summary: Previsualizar una etiqueta
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                labelId:
+                  type: integer
+                  example: 1
+
+
+      responses:
+        "200":
+          description: Imagen PNG de la etiqueta
+          content:
+            image/png:
+              schema:
+                type: string
+                format: binary
+  /api/label/reprint:
+    post:
+      tags:
+        - Etiquetas
+      summary: Reimprimir una etiqueta específica
+      description: Envía una etiqueta específica a la impresora basándose en un número de serie previo. No descuenta del límite diario.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                labelId:
+                  type: integer
+                  example: 105
+                  description: ID del registro histórico (log) que se desea reimprimir.
+
+
+
+
+      responses:
+        "200":
+          description: Reimpresión enviada correctamente
+        "404":
+          description: Etiqueta o impresora no encontrada
+
+  /api/label/reprint/preview:
+    post:
+      tags:
+        - Etiquetas
+      summary: Previsualizar una etiqueta histórica (reimpresión)
+      description: Genera una previsualización en PNG de una etiqueta que ya fue impresa anteriormente.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                logId:
+                  type: integer
+                  example: 105
+                  description: ID del registro histórico (log) que se desea previsualizar.
+      responses:
+        "200":
+          description: Imagen PNG de la etiqueta histórica
+          content:
+            image/png:
+              schema:
+                type: string
+                format: binary
+        "404":
+          description: Registro histórico no encontrado
+
+
+
+
+
+  /api/labels:
+    get:
+      tags:
+        - Configuración
+      summary: Listar todas las etiquetas configuradas
+      responses:
+        "200":
+          description: Lista de etiquetas
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id:
+                      type: integer
+                    part_number:
+                      type: string
+                    printing_limit:
+                      type: integer
+                    printed_today:
+                      type: integer
+                    remaining_limit:
+                      type: integer
+
+
+  /api/labels/{id}:
+
+    get:
+      tags:
+        - Configuración
+      summary: Obtener información detallada y estadísticas de una etiqueta
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: date
+          in: query
+          description: Fecha específica para consultar estadísticas (formato YYYY-MM-DD). Por defecto hoy.
+          schema:
+            type: string
+            format: date
+      responses:
+        "200":
+          description: Información y estadísticas de la etiqueta
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  label:
+                    type: object
+                  stats:
+                    type: object
+                    properties:
+                      date:
+                        type: string
+                      printed_count:
+                        type: integer
+                      remaining_limit:
+                        type: integer
+        "404":
+          description: Etiqueta no encontrada
+
+  /api/labels/{id}/logs:
+    get:
+      tags:
+        - Configuración
+      summary: Obtener el historial completo de impresiones de una etiqueta
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Lista de logs de impresión
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id:
+                      type: integer
+                    serial_number:
+                      type: string
+                    printed_at:
+                      type: string
+                      format: date-time
+                    printed_by:
+                      type: string
+        "404":
+          description: Etiqueta no encontrada
+
+
